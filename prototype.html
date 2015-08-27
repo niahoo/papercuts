@@ -1,0 +1,193 @@
+<!doctype html>
+<meta charset='utf-8'>
+<title>d3 test</title>
+<h1>d3 test</h1>
+
+<style type="text/css">
+	#container {
+		background:#aaa;
+	}
+	#container svg {
+		height:400px;
+		width:400px;
+	}
+	#container > * {
+		border:1px solid red;
+		background:white;
+		margin:0 10px 10px 0;
+		float:left;
+	}
+	rect, circle {
+		fill-opacity:0;
+		stroke-width:1px;
+	}
+</style>
+
+<div id='container'></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+<script>
+
+	function mult(selection) {
+	}
+
+	function multiSet(setter,props) {
+		console.log('multi args',arguments)
+		return function (selection) {
+			Object.keys(props).forEach(function(k){
+				selection[setter](k,props[k])
+			})
+			return selection
+		}
+	}
+	var styles = multiSet.bind(null, 'style')
+	var attrs = multiSet.bind(null, 'attr')
+
+	var svgTransforms = {
+		toString: function(transforms) {
+			return transforms.map(function(params){
+				// on reçoit ['translate',x,y,...]
+				// on applique svgTransforms['translate'](x, y, ...)
+				var args = Array.prototype.slice.call(params,1)
+				var f = params[0]
+				return [f,'(',args.join(','),')'].join('')
+			}).join(' ')
+		},
+
+	}
+
+	function transformAttr(transforms) {
+		return transforms.join(' ')
+	}
+
+	function cloneSelection(appendTo, toCopy, times) {
+	  toCopy.each(function() {
+	    for (var i = 0; i < times; i++) {
+	        var clone = svg.node().appendChild(this.cloneNode(true));
+	        d3.select(clone).attr("class", "clone");
+	    }
+	  });
+	  return appendTo.selectAll('.clone');
+	}
+
+	// -------------------------------------------------------
+
+	var skelspec = {
+		head: {
+			width:100,
+			height:200,
+			transform: [['translate',10,20],['rotate',5]]
+		}
+	}
+
+	var skel = d3.select('#container').append('svg')
+	var skelStyles = styles({
+		fill:'none', stroke:'#515151', 'stroke-width':'1px'
+	})
+	Object.keys(skelspec).forEach(function(k) {
+		var spec = skelspec[k]
+		skel.append('rect').call(attrs({
+			width:      spec.width,
+			height:     spec.height,
+			id:        'guide-' + k,
+			transform:  svgTransforms.toString(spec.transform)
+		})).call(skelStyles)
+	})
+
+	var items = d3.select('#container').append('svg')
+	var stuff = {}
+
+	stuff.head = items.append('g')
+		.attr('class','feature-head')
+		.attr('vector-effect','non-scaling-stroke')
+
+	stuff.head.append('rect').call(attrs({
+		width: 300,
+		height: 200,
+		'class': 'guide'
+	})).call(styles({fill:'none', stroke:'#515151'}))
+
+	stuff.head.append('rect').call(attrs({
+		width: 123,
+		height: 20,
+		x:50, y:5
+	})).call(styles({fill:'none', stroke:'purple'}))
+
+	stuff.head.append('rect').call(attrs({
+		width: 45,
+		height: 50,
+		x:-20, y:42
+	})).call(styles({fill:'none', stroke:'green'}))
+
+	stuff.head.append('circle').call(attrs({
+		cx: 45,
+		cy: 50,
+		r:20
+	})).call(styles({fill:'none', stroke:'green'}))
+
+	// application de la déco sur le guide
+
+	var scene = d3.select('#container')
+		.append('svg')
+		.call(attrs({
+			id: 'scene',
+			width:400, height:400, viewBox:'0 0 400 400',
+			'shape-rendering': 'geometricPrecision',
+			'image-rendering': 'optimizeQuality'
+
+		}))
+
+	Object.keys(skelspec).forEach(function(k){
+		var spec = skelspec[k]
+
+		// 1. clone
+
+		var itemGroupOrigin = items.select('.feature-'+k)
+		var itemGroupClone = itemGroupOrigin.node().cloneNode(true)
+		scene.node().appendChild(itemGroupClone)
+		var itemGroup = d3.select(itemGroupClone)
+		var guide = itemGroup.select('.guide')
+
+
+
+
+		// 2. rescale
+
+		var guideWidth = Number(guide.attr('width'))
+		var guideHeight = Number(guide.attr('height'))
+		var scaleX = spec.width / guideWidth
+		var scaleY = spec.height / guideHeight
+
+		// var transform = []
+		var transform = spec.transform.slice()
+		transform.push(['scale',scaleX,scaleY])
+
+		itemGroup.attr('transform', svgTransforms.toString(transform))
+
+		console.log('done')
+	})
+
+
+	var container = document.getElementById('container')
+	var svgString = new XMLSerializer().serializeToString(scene.node());
+	console.log('svgString',svgString)
+	var canvas = document.createElement('canvas')
+	canvas.height = canvas.width = 400
+	container.appendChild(canvas)
+	var ctx = canvas.getContext('2d');
+	var DOMURL = window.URL || window.webkitURL
+	var img = new Image()
+	var blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'})
+	var src = DOMURL.createObjectURL(blob)
+	console.log('src ', src)
+	img.onload = function() {
+	    ctx.drawImage(img, 0, 0)
+	    var png = canvas.toDataURL('image/png')
+	    d3.select('#container').append('img').attr('src', png)
+	    DOMURL.revokeObjectURL(png)
+	}
+	img.src = src
+
+
+
+</script>
