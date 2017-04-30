@@ -1,0 +1,232 @@
+<!doctype html>
+<meta charset='utf-8'>
+<title>canvas test</title>
+<h1>canvas test</h1>
+
+<script src="util.min.js" charset="utf-8"></script>
+<style type="text/css">
+</style>
+
+<div id='container'></div>
+
+<script type="text/javascript">
+	var pretty = util.pretty
+	var radians = function(deg) { return deg * Math.PI / 180 }
+	function mxtend(o, o2) {
+		for(var k in o2) if (o2.hasOwnProperty(k)) {
+			o[k] = o2[k]
+		}
+		return o
+	}
+	var addCoords = function(a, b) {
+		return xy(a.x + b.x, a.y + b.y)
+	}
+	var subsCoords = function(a, b) {
+		return xy(a.x - b.x, a.y - b.y)
+	}
+	var container = document.getElementById('container')
+	function xy(x, y) {return {x: x, y: y}}
+	var skel = {
+		parts: ['body', 'leg1', 'leg2'],
+		animation: [
+			{frame: 0, ticks: 3},
+			{frame: 1, ticks: 3},
+			{frame: 2, ticks: 3},
+			{frame: 3, ticks: 3},
+			{frame: 4, ticks: 3},
+			{frame: 3, ticks: 3},
+			{frame: 2, ticks: 3},
+			{frame: 1, ticks: 3},
+		],
+		frames: [
+			{
+				_root: {
+					pins: [{ id: 'body', deg: 0 }]
+				},
+				body: {
+					pins: [
+						{ id: 'leg1', deg: -45 },
+						{ id: 'leg2', deg: 45 },
+					],
+				},
+				leg1: {pins: []},
+				leg2: {pins: []},
+			},
+			{
+				_root: {
+					pins: [{ id: 'body', deg: 0 }]
+				},
+				body: {
+					pins: [
+						{ id: 'leg1', deg: -30 },
+						{ id: 'leg2', deg: 30 },
+					],
+				},
+				leg1: {pins: []},
+				leg2: {pins: []},
+			},
+			{
+				_root: {
+					pins: [{ id: 'body', deg: 0 }]
+				},
+				body: {
+					pins: [
+						{ id: 'leg1', deg: 0 },
+						{ id: 'leg2', deg: 0 },
+					],
+				},
+				leg1: {pins: []},
+				leg2: {pins: []},
+			},
+			{
+				_root: {
+					pins: [{ id: 'body', deg: 0 }]
+				},
+				body: {
+					pins: [
+						{ id: 'leg1', deg: 30 },
+						{ id: 'leg2', deg: -30 },
+					],
+				},
+				leg1: {pins: []},
+				leg2: {pins: []},
+			},
+			{
+				_root: {
+					pins: [{ id: 'body', deg: 0 }]
+				},
+				body: {
+					pins: [
+						{ id: 'leg1', deg: 45 },
+						{ id: 'leg2', deg: -45 },
+					],
+				},
+				leg1: {pins: []},
+				leg2: {pins: []},
+			},
+		],
+		flesh: {
+			_root: {
+				draw: false,
+				pinIn: xy(0, 0),
+				pinSub: {
+					body: xy(60, 60)
+				}
+			},
+			body: {
+				dbgColor: 'rgb(200,0,0)',
+				// attach to parent pin at coords
+				pinIn: xy(25, 50),
+				w: 40,
+				h: 100,
+				// attach child parts at
+				pinSub: {
+					leg1: xy(20, 85),
+					leg2: xy(20, 85),
+				},
+			},
+			leg1: {
+				dbgColor: '#00ff00',
+				pinIn: xy(10, 5),
+				w:20,
+				h: 60,
+			},
+			leg2: {
+				dbgColor: '#0000ff',
+				pinIn: xy(10, 5),
+				w:20,
+				h: 60,
+			},
+		},
+	}
+	function linkFramesFlesh(def){
+		// for each frame, we add the flesh info in the anim skel
+		var ids = ['_root'].concat(def.parts)
+		def.frames.forEach(function(frame){
+			ids.forEach(function(id){
+				frame[id].flesh = def.flesh[id]
+				frame[id].id = id
+				frame[id].pins.forEach(function(pin){
+					pin.rad = radians(pin.deg)
+				})
+			})
+		})
+	}
+	linkFramesFlesh(skel)
+
+	function renderFrame(getCanvas, skel, i) {
+		var frame = skel.frames[i]
+		var flesh = skel.flesh
+		var canvas = getCanvas()
+		var ctx = canvas.getContext('2d')
+
+		renderPart(frame._root)
+		return canvas
+
+		function renderPart(part) {
+			// Here the context is translated and the origin is our entry pin.
+			// As the pin, in the local coord system (the part size), is not
+			// 0;0, we calculate coordinates of our rect relative to the pin. So
+			// if the pin is at 10;10 in our local context, we must draw our
+			// rect at -10;-10 in this context.
+			var partOrigin = subsCoords(xy(0,0), part.flesh.pinIn)
+			if (part.flesh.draw !== false) {
+				ctx.fillStyle = part.flesh.dbgColor || 'rgb(200,0,0)'
+				// // coords : (0,0) + pinAbs - pinIn
+				// var x = part.pinAbs[0] - part.pinIn[0]
+				// var y = part.pinAbs[1] - part.pinIn[1]
+				// if (part.deg) {
+				// 	ctx.rotate(radians(part.deg))
+				// }
+				ctx.fillRect(partOrigin.x, partOrigin.y, part.flesh.w, part.flesh.h)
+			}
+			// canvas.save()
+			;(part.pins||[]).forEach(function(pin){
+				ctx.save()
+				var subXY = addCoords(partOrigin, part.flesh.pinSub[pin.id])
+				ctx.translate(subXY.x, subXY.y)
+				ctx.rotate(pin.rad)
+				renderPart(frame[pin.id])
+				ctx.restore()
+			})
+		}
+	}
+	var getCanvas = function(){
+		var canvas = document.createElement('canvas')
+		canvas.setAttribute('width', 200)
+		canvas.setAttribute('height', 200)
+		container.appendChild(canvas)
+		return canvas
+	}
+	function clean() {
+		container.querySelectorAll('canvas').forEach(function(node, i){
+			node.parentNode.removeChild(node)
+		})
+	}
+	var framesCanvas = skel.frames.map(function(_, index){
+		return renderFrame(getCanvas, skel, index)
+	})
+	var scene = getCanvas()
+	var sceneCtx = scene.getContext('2d')
+	var tickCount = 0
+	var stageIndex = 0
+	var animLen = skel.animation.length
+	var stage
+	var loop = function() {
+		window.requestAnimationFrame(loop)
+		tickCount += 1
+		var stage = skel.animation[stageIndex]
+		if (tickCount > stage.ticks) {
+			tickCount = 0
+			stageIndex += 1
+			if (stageIndex === animLen) {
+				stageIndex = 0
+			}
+			stage = skel.animation[stageIndex]
+		}
+		sceneCtx.clearRect(0, 0, scene.width, scene.height)
+		sceneCtx.drawImage(framesCanvas[stage.frame], 0, 0)
+	}
+	console.log('framesCanvas', framesCanvas)
+	loop()
+</script>
