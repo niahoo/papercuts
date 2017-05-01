@@ -174,7 +174,9 @@
 	var costume = {
 		body: {
 			src: 'assets/body.png',
-			box: {x: 0, y: 0, w: 143, h: 200}
+			// img width = 143
+			// box width = 102
+			box: {x: (143 - 102) / 2, y: 0, w: 102, h: 200}
 		},
 		leg1: {
 			src: 'assets/leg.png',
@@ -236,7 +238,7 @@
 					ctx.save()
 					ctx.scale(scaleX, scaleY)
 					var imgCoords = negateCoords(part.skin.box)
-					ctx.fillStyle = 'rgba(200,0,0,0.2)'
+					ctx.strokeStyle = 'rgb(0,0,0)'
 					ctx.drawImage(part.skin.img, imgCoords.x, imgCoords.y)
 					ctx.strokeRect(0, 0, part.skin.box.w, part.skin.box.h)
 					ctx.restore()
