@@ -7,36 +7,34 @@
 <style type="text/css">
 </style>
 
-<div id='container'></div>
+<div id='app'></div>
 
 <script type="text/javascript">
 	var pretty = util.pretty
 	var radians = function(deg) { return deg * Math.PI / 180 }
-	function mxtend(o, o2) {
-		for(var k in o2) if (o2.hasOwnProperty(k)) {
-			o[k] = o2[k]
-		}
-		return o
-	}
+	function xy(x, y) {return {x: x, y: y}}
+	var originCoords = xy(0,0)
 	var addCoords = function(a, b) {
 		return xy(a.x + b.x, a.y + b.y)
 	}
 	var subsCoords = function(a, b) {
 		return xy(a.x - b.x, a.y - b.y)
 	}
-	var container = document.getElementById('container')
-	function xy(x, y) {return {x: x, y: y}}
+	var negateCoords = function(coords) {
+		return subsCoords(originCoords, coords)
+	}
+	var appContainer = document.getElementById('app')
 	var skel = {
 		parts: ['body', 'leg1', 'leg2'],
 		animation: [
-			{frame: 0, ticks: 3},
-			{frame: 1, ticks: 3},
-			{frame: 2, ticks: 3},
-			{frame: 3, ticks: 3},
-			{frame: 4, ticks: 3},
-			{frame: 3, ticks: 3},
-			{frame: 2, ticks: 3},
-			{frame: 1, ticks: 3},
+			{frame: 0, ticks: 6},
+			{frame: 1, ticks: 6},
+			{frame: 2, ticks: 6},
+			{frame: 3, ticks: 6},
+			{frame: 4, ticks: 6},
+			{frame: 3, ticks: 6},
+			{frame: 2, ticks: 6},
+			{frame: 1, ticks: 6},
 		],
 		frames: [
 			{
@@ -105,54 +103,103 @@
 				leg2: {pins: []},
 			},
 		],
-		flesh: {
-			_root: {
-				draw: false,
-				pinIn: xy(0, 0),
-				pinSub: {
-					body: xy(60, 60)
-				}
-			},
-			body: {
-				dbgColor: 'rgb(200,0,0)',
-				// attach to parent pin at coords
-				pinIn: xy(25, 50),
-				w: 40,
-				h: 100,
-				// attach child parts at
-				pinSub: {
-					leg1: xy(20, 85),
-					leg2: xy(20, 85),
-				},
-			},
-			leg1: {
-				dbgColor: '#00ff00',
-				pinIn: xy(10, 5),
-				w:20,
-				h: 60,
-			},
-			leg2: {
-				dbgColor: '#0000ff',
-				pinIn: xy(10, 5),
-				w:20,
-				h: 60,
+	}
+	var fleshTroll =  {
+		_root: {
+			draw: false,
+			pinIn: xy(0, 0),
+			pinSub: {
+				body: xy(60, 60)
+			}
+		},
+		body: {
+			dbgColor: 'rgb(200,0,0)',
+			// attach to parent pin at coords
+			pinIn: xy(25, 50),
+			w: 40,
+			h: 100,
+			// attach child parts at
+			pinSub: {
+				leg1: xy(20, 85),
+				leg2: xy(20, 85),
 			},
 		},
+		leg1: {
+			dbgColor: '#00ff00',
+			pinIn: xy(10, 5),
+			w: 20,
+			h: 60,
+		},
+		leg2: {
+			dbgColor: '#0000ff',
+			pinIn: xy(10, 5),
+			w: 20,
+			h: 60,
+		},
 	}
-	function linkFramesFlesh(def){
+	var fleshGnome =  {
+		_root: {
+			draw: false,
+			pinIn: xy(0, 0),
+			pinSub: {
+				body: xy(60, 60)
+			}
+		},
+		body: {
+			dbgColor: 'rgb(200,0,0)',
+			// attach to parent pin at coords
+			pinIn: xy(25, 50),
+			w: 18,
+			h: 40,
+			// attach child parts at
+			pinSub: {
+				leg1: xy(9, 37),
+				leg2: xy(9, 37),
+			},
+		},
+		leg1: {
+			dbgColor: '#00ff00',
+			pinIn: xy(3, 2),
+			w: 6,
+			h: 16,
+		},
+		leg2: {
+			dbgColor: '#0000ff',
+			pinIn: xy(3, 2),
+			w: 6,
+			h: 16,
+		},
+	}
+
+	var costume = {
+		body: {
+			src: 'assets/body.png',
+			box: {x: 0, y: 0, w: 143, h: 200}
+		},
+		leg1: {
+			src: 'assets/leg.png',
+			box: {x: 0   , y: 0, w: 120 , h: 281}
+		},
+		leg2: {
+			src: 'assets/leg.png',
+			box: {x: 0   , y: 0, w: 120 , h: 281}
+		},
+	}
+
+	function linkFramesFleshSkin(skel, flesh, skin){
 		// for each frame, we add the flesh info in the anim skel
-		var ids = ['_root'].concat(def.parts)
-		def.frames.forEach(function(frame){
+		var ids = ['_root'].concat(skel.parts)
+		skel.frames.forEach(function(frame){
 			ids.forEach(function(id){
-				frame[id].flesh = def.flesh[id]
+				frame[id].flesh = flesh[id]
 				frame[id].id = id
+				frame[id].skin = skin[id] || void 0
 				frame[id].pins.forEach(function(pin){
 					pin.rad = radians(pin.deg)
 				})
 			})
 		})
 	}
-	linkFramesFlesh(skel)
 
 	function renderFrame(getCanvas, skel, i) {
 		var frame = skel.frames[i]
@@ -169,7 +216,9 @@
 			// 0;0, we calculate coordinates of our rect relative to the pin. So
 			// if the pin is at 10;10 in our local context, we must draw our
 			// rect at -10;-10 in this context.
-			var partOrigin = subsCoords(xy(0,0), part.flesh.pinIn)
+			ctx.save()
+			var partOrigin = negateCoords(part.flesh.pinIn)
+			ctx.translate(partOrigin.x, partOrigin.y)
 			if (part.flesh.draw !== false) {
 				ctx.fillStyle = part.flesh.dbgColor || 'rgb(200,0,0)'
 				// // coords : (0,0) + pinAbs - pinIn
@@ -178,55 +227,113 @@
 				// if (part.deg) {
 				// 	ctx.rotate(radians(part.deg))
 				// }
-				ctx.fillRect(partOrigin.x, partOrigin.y, part.flesh.w, part.flesh.h)
+				ctx.fillRect(0, 0, part.flesh.w, part.flesh.h)
+				if (part.skin) {
+					// drawing image. Calculate scale transform to draw the image
+					// (from its box) to our part rectangle
+					var scaleX = part.flesh.w / part.skin.box.w
+					var scaleY = part.flesh.h / part.skin.box.h
+					ctx.save()
+					ctx.scale(scaleX, scaleY)
+					var imgCoords = negateCoords(part.skin.box)
+					ctx.fillStyle = 'rgba(200,0,0,0.2)'
+					ctx.drawImage(part.skin.img, imgCoords.x, imgCoords.y)
+					ctx.strokeRect(0, 0, part.skin.box.w, part.skin.box.h)
+					ctx.restore()
+				}
 			}
 			// canvas.save()
 			;(part.pins||[]).forEach(function(pin){
 				ctx.save()
-				var subXY = addCoords(partOrigin, part.flesh.pinSub[pin.id])
+				var subXY = part.flesh.pinSub[pin.id]
 				ctx.translate(subXY.x, subXY.y)
 				ctx.rotate(pin.rad)
 				renderPart(frame[pin.id])
 				ctx.restore()
 			})
+			ctx.restore()
 		}
 	}
-	var getCanvas = function(){
-		var canvas = document.createElement('canvas')
-		canvas.setAttribute('width', 200)
-		canvas.setAttribute('height', 200)
-		container.appendChild(canvas)
-		return canvas
-	}
-	function clean() {
-		container.querySelectorAll('canvas').forEach(function(node, i){
-			node.parentNode.removeChild(node)
+
+
+	function loadSkinPart(part) {
+		return new Promise(function(ok, err){
+			var img = new Image
+			img.src = part.src
+			img.onload = function() {
+				part.img = img
+				ok(part)
+			}
+			img.onerror = err
 		})
 	}
-	var framesCanvas = skel.frames.map(function(_, index){
-		return renderFrame(getCanvas, skel, index)
-	})
-	var scene = getCanvas()
-	var sceneCtx = scene.getContext('2d')
-	var tickCount = 0
-	var stageIndex = 0
-	var animLen = skel.animation.length
-	var stage
-	var loop = function() {
-		window.requestAnimationFrame(loop)
-		tickCount += 1
-		var stage = skel.animation[stageIndex]
-		if (tickCount > stage.ticks) {
-			tickCount = 0
-			stageIndex += 1
-			if (stageIndex === animLen) {
-				stageIndex = 0
-			}
-			stage = skel.animation[stageIndex]
-		}
-		sceneCtx.clearRect(0, 0, scene.width, scene.height)
-		sceneCtx.drawImage(framesCanvas[stage.frame], 0, 0)
+
+	function loadSkin(skin) {
+		return Promise.all(Object.keys(skin).map(function(k){
+			var part = skin[k]
+			return loadSkinPart(part)
+		}))
 	}
-	console.log('framesCanvas', framesCanvas)
-	loop()
+
+
+
+	loadSkin(costume).then(function(){
+		console.log('costume', costume)
+		renderAnimatedToon(skel, fleshTroll, costume)
+		renderAnimatedToon(skel, fleshGnome, costume)
+	})
+
+	function renderAnimatedToon(skel, flesh, skin) {
+		skel = JSON.parse(JSON.stringify(skel)) // clone to mutate
+		linkFramesFleshSkin(skel, flesh, skin)
+
+
+		var container = document.createElement('div')
+		container.setAttribute('class', 'container')
+		appContainer.appendChild(container)
+
+		var getCanvas = function(){
+			var canvas = document.createElement('canvas')
+			canvas.setAttribute('width', 200)
+			canvas.setAttribute('height', 200)
+			container.appendChild(canvas)
+			return canvas
+		}
+
+
+		var framesCanvas = skel.frames.map(function(_, index){
+			return renderFrame(getCanvas, skel, index)
+		})
+		var scene = getCanvas()
+		var sceneCtx = scene.getContext('2d')
+		var tickCount = 0
+		var stageIndex = 0
+		var animLen = skel.animation.length
+		var stage
+		var lastDrawedStage
+		var DBG_COUNT = -99999
+		var loop = function() {
+			if (DBG_COUNT < 15)
+				window.requestAnimationFrame(loop)
+			var stage = skel.animation[stageIndex]
+			if (tickCount > stage.ticks) {
+				tickCount = 0
+				stageIndex += 1
+				if (stageIndex === animLen) {
+					stageIndex = 0
+				}
+				lastDrawedStage = stage
+				stage = skel.animation[stageIndex]
+			}
+			tickCount += 1
+			drawed = stage
+			if (lastDrawedStage !== stage) {
+				lastDrawedStage = stage
+				sceneCtx.clearRect(0, 0, scene.width, scene.height)
+				sceneCtx.drawImage(framesCanvas[stage.frame], 0, 0)
+			}
+		}
+		console.log('framesCanvas', framesCanvas)
+		loop()
+	}
 </script>
